@@ -10,14 +10,14 @@
 // Contains functions for executing user commands
 
 int cmd(char *args[]) {
-	int *status = NULL;
+	int status;
 	if (fork()) {
-		wait(status);
+		wait(&status);
 	}
 	else {
 		exit(execvp(args[0], args));			
 	}
-	return *status;
+	return status;
 }
 
 
