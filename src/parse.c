@@ -73,7 +73,7 @@ void getTokens(char *input, char *tokens[]) {
 }
 
 int findOutputRedirect(char *tokens[]) {
-	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
 		if (strcmp(tokens[i], ">>") == 0)
 			return i;
 	}
@@ -81,7 +81,7 @@ int findOutputRedirect(char *tokens[]) {
 }
 
 int findInputRedirect(char *tokens[]) {
-	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
 		if (strcmp(tokens[i], "<<") == 0)
 			return i;
 	}
@@ -89,7 +89,7 @@ int findInputRedirect(char *tokens[]) {
 }
 
 int findPipe(char *tokens[]) {
-	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
 		if (strcmp(tokens[i], "|") == 0)
 			return i;
 	}
@@ -97,7 +97,7 @@ int findPipe(char *tokens[]) {
 }
 
 int findErr(char *tokens[]) {
-	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
 		if (strcmp(tokens[i], "2>") == 0)
 			return i;
 	}

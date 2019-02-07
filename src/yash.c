@@ -15,7 +15,10 @@
 // Author: Jarrad Cisco
 // UT eid: jcc5225
 // Description:
-//		This is the main file for yet another shell (yash).
+// This is the main file for yet another shell (yash).
+// yash supports basic Linux commands (ls, echo, cat, touch, pwd, sleep).
+// yash also supports file redirection and piping, along with foreground and
+// background job management.
 
 
 int main(int argc, char * argv[]) {
@@ -33,12 +36,9 @@ int main(int argc, char * argv[]) {
 		else {
             // tokenize input
             getTokens(input, tokens);
-            // if we're exiting, don't bother doing anything else
-            if (strcmp(tokens[0], "exit") == 0) {
-                exit(0);
-            }
-			// execute children
            
+			
+			// execute children
             status = cmd(tokens, args);
             if (status == -1)
                 printf("\n");

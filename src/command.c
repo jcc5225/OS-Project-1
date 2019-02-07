@@ -41,29 +41,30 @@ static int redirect(char *path, direction dir) {
 
 int cmd(char *tokens[], char *args[]) {
 	int status, cpid;
-	int cmdOffset;
 	int outputLoc;
 	int inputLoc;
+	
+	// get args for exec call
+	getArgs(tokens, args);
+	outputLoc = findOutputRedirect(tokens);
+	inputLoc = findInputRedirect(tokens);
 
+	// create child process
 	cpid = fork();
-
+	
 	if (cpid != 0) {
 		// parent process
 		wait(&status);
 	}
 	else {
 		// Child Process
-		outputLoc = findOutputRedirect(tokens);
-		inputLoc = findInputRedirect(tokens);
 		if (outputLoc != -1) {
 			// TODO: ensure outputLoc isn't 0
 			redirect(tokens[outputLoc + 1], OUT);
 		} 
 		if (inputLoc != -1) {
-			redirect(tokens[inputLoc - 1], IN);
-			cmdOffset = inputLoc + 1;
+			redirect(tokens[inputLoc + 1], IN);
 		}
-		getArgs(tokens + cmdOffset, args);	
 		execvp(args[0], args);		
 	}
 	return status;
