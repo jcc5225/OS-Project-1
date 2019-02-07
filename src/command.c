@@ -59,7 +59,6 @@ int cmd(char *tokens[], char *args[]) {
 	else {
 		// Child Process
 		if (outputLoc != -1) {
-			// TODO: ensure outputLoc isn't 0
 			redirect(tokens[outputLoc + 1], OUT);
 		} 
 		if (inputLoc != -1) {

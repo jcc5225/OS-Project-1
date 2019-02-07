@@ -29,8 +29,8 @@ static void freeArr(char **arr, int len) {
 // @return true if one of yash tokens, false otherwise
 static bool tokcmp(char *token) {
 	return (token == NULL				|| 
-			strcmp(token, ">>") == 0	||
-			strcmp(token, "<<") == 0	||
+			strcmp(token, ">") == 0	||
+			strcmp(token, "<") == 0	||
 			strcmp(token, "2>") == 0	||
 			strcmp(token, "|")  ==	0	);
 }
@@ -74,7 +74,7 @@ void getTokens(char *input, char *tokens[]) {
 
 int findOutputRedirect(char *tokens[]) {
 	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
-		if (strcmp(tokens[i], ">>") == 0)
+		if (strcmp(tokens[i], ">") == 0)
 			return i;
 	}
 	return -1;
@@ -82,7 +82,7 @@ int findOutputRedirect(char *tokens[]) {
 
 int findInputRedirect(char *tokens[]) {
 	for (int i=1; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
-		if (strcmp(tokens[i], "<<") == 0)
+		if (strcmp(tokens[i], "<") == 0)
 			return i;
 	}
 	return -1;
