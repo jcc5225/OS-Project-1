@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include "parse.h"
+#include <stdbool.h>
+#include <stdio.h>
 
 // File: parse.c
 // Author: Jarrad Cisco
@@ -8,32 +10,97 @@
 // Description:
 // parses user input into tokens and command arguments
 
+// @func freeArr
+// @brief frees all strings in an array
+// @param arr array of strings to be freed
+// @param len length of the array
+// @return void
+static void freeArr(char **arr, int len) {
+	for (int i=0; i < len; i++) {
+		if (*arr != NULL)
+			free(*arr);
+		arr++;
+	}
+}
+
+// @func tokcmp
+// @brief compares a token to a list of yash tokens (>>, <<, 2>, |, NULL)
+// @param token the token to compare
+// @return true if one of yash tokens, false otherwise
+static bool tokcmp(char *token) {
+	return (token == NULL				|| 
+			strcmp(token, ">>") == 0	||
+			strcmp(token, "<<") == 0	||
+			strcmp(token, "2>") == 0	||
+			strcmp(token, "|")  ==	0	);
+}
+
 void getArgs(char *tokens[], char *args[]) {
+    const size_t TOKEN_SZ = TOKEN_LEN*sizeof(char);
     char **arg = args;
     char **token = tokens;
-    while (*token != NULL) {
-    	if (*arg != NULL)
-			free(*arg);
-		*arg = (char *) malloc(31*sizeof(char));
-        strcpy(*arg, *token);
+	// free previous args
+	freeArr(args, ARGS_SIZE);
+	// copy each argument token
+    while (!tokcmp(*token)) {
+		*arg = (char *) malloc(TOKEN_SZ);
+        snprintf(*arg, TOKEN_SZ, "%s", *token);
         arg++;
         token++;
     }
+	// null terminate args
     *arg = (char *) NULL;
 }
 
-char **getTokens(char *input) {
-	char **tokens = (char **) calloc(67, sizeof(char *));
-	char *tok;
+void getTokens(char *input, char *tokens[]) {
+    const size_t TOKEN_SZ = TOKEN_LEN*sizeof(char);
+    char *tok;
 	int i = 0;
+	char **token = tokens;
+	// free previous tokens
+	freeArr(tokens, TOKENS_SIZE);
 	// tokenize user input
 	tok = strtok(input, " ");
-	while (tok != NULL &&  i < 67) {
-		tokens[i] = (char *) malloc(31*sizeof(char));
-		strcpy(tokens[i], tok);
+	while (tok != NULL &&  i < TOKENS_SIZE) {
+		*token = (char *) malloc(TOKEN_SZ);
+        snprintf(*token, TOKEN_SZ, "%s", tok);
+        token++;
 		i++;
 		tok = strtok(NULL, " \n");
     }
-	return tokens;
+	// getting some weird behavior with last token pointing to previous one
+	*token = NULL;
+}
+
+int findOutputRedirect(char *tokens[]) {
+	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+		if (strcmp(tokens[i], ">>") == 0)
+			return i;
+	}
+	return -1;
+}
+
+int findInputRedirect(char *tokens[]) {
+	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+		if (strcmp(tokens[i], "<<") == 0)
+			return i;
+	}
+	return -1;
+}
+
+int findPipe(char *tokens[]) {
+	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+		if (strcmp(tokens[i], "|") == 0)
+			return i;
+	}
+	return -1;
+}
+
+int findErr(char *tokens[]) {
+	for (int i=0; tokens[i] != NULL && i < TOKENS_SIZE; i++) {
+		if (strcmp(tokens[i], "2>") == 0)
+			return i;
+	}
+	return -1;
 }
 

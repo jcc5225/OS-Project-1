@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 #include "yash.h"
 #include "parse.h"
 #include "command.h"
@@ -19,28 +20,29 @@
 
 int main(int argc, char * argv[]) {
 	char *input;
-	char **tokens;
-	char *args[67];
+	char *args[ARGS_SIZE] = {0};
+	char *tokens[TOKENS_SIZE] = {0};
 	int status;
 	while(1) {
 		// print prompt and get user input
 		input = readline("# ");
 
-		tokens = getTokens(input);
 		if (strcmp(input, "") == 0) {
 			//user didn't enter anything, don't do anything
 		}
-		// if we're exiting, don't bother doing anything else
-		else if (strcmp(tokens[0], "exit") == 0) {
-			exit(0);
-		}
 		else {
+            // tokenize input
+            getTokens(input, tokens);
+            // if we're exiting, don't bother doing anything else
+            if (strcmp(tokens[0], "exit") == 0) {
+                exit(0);
+            }
 			// execute children
-			getArgs(tokens, args);
-			status = cmd(args);
-			if (status == -1)
-				printf("\n");
+           
+            status = cmd(tokens, args);
+            if (status == -1)
+                printf("\n");
 
-		}
-	}	
-}
+        }
+	}
+}	

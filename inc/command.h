@@ -4,31 +4,26 @@
 // Description:
 // Contains function prototypes for command.c
 
+// pipe end definitions
+#define PIPE_RD		0
+#define PIPE_WR		1
+
 // direction of file redirection
-enum direction {
+typedef enum direction {
 	IN,
 	OUT
-};
-
+} direction;
 
 // @func cmd
-// @brief executes a command in its own process
+// @brief executes a command in the foreground
 // @param args arguments to be passed to exec (null terminated)
 // @return exit code of child process
-int cmd(char *args[]);
-
-// @func redirect
-// @brief executes a command, redirecting output to a file
-// @param args arguments to be passed to exec (null terminated)
-// @param out filename to redirect input from/output to
-// @param dir the direction of the redirection
-// @return exit code of child process
-//int redirect(char *args[], char *out, direction dir); 
+int cmd(char *tokens[], char *args[]);
 
 // @func pipeDreams
 // @brief see HEAT by BROCKHAMPTON
 // (it actually pipes two commands together)
 // @param args1
 // @param args2
-// @return exit code of commands
+// @return -1 for failure, 0 otherwise
 int pipeDreams(char *args1[], char *args2[]);
