@@ -23,7 +23,8 @@
 
 int main(int argc, char * argv[]) {
 	char *input;
-	char *args[ARGS_SIZE] = {0};
+	char *args1[ARGS_SIZE] = {0};
+	char *args2[ARGS_SIZE] ={0};
 	char *tokens[TOKENS_SIZE] = {0};
 	int status;
 	while(1) {
@@ -34,15 +35,14 @@ int main(int argc, char * argv[]) {
 			//user didn't enter anything, don't do anything
 		}
 		else {
-            // tokenize input
-            getTokens(input, tokens);
-           
-			
-			// execute children
-            status = cmd(tokens, args);
-            if (status == -1)
-                printf("\n");
+			  // tokenize input
+				getTokens(input, tokens);
 
-        }
+			  // execute children
+        status = cmd(tokens, args1, args2);
+        if (status == -1)
+          	printf("\n");
+
+    }
 	}
-}	
+}

@@ -17,8 +17,10 @@
 // @return void
 static void freeArr(char **arr, int len) {
 	for (int i=0; i < len; i++) {
-		if (*arr != NULL)
+		if (*arr != NULL) {
 			free(*arr);
+			*arr = NULL;
+		}
 		arr++;
 	}
 }
@@ -28,7 +30,7 @@ static void freeArr(char **arr, int len) {
 // @param token the token to compare
 // @return true if one of yash tokens, false otherwise
 static bool tokcmp(char *token) {
-	return (token == NULL				|| 
+	return (token == NULL				||
 			strcmp(token, ">") == 0	||
 			strcmp(token, "<") == 0	||
 			strcmp(token, "2>") == 0	||
@@ -103,4 +105,3 @@ int findErr(char *tokens[]) {
 	}
 	return -1;
 }
-

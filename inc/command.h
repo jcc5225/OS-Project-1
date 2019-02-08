@@ -16,14 +16,9 @@ typedef enum direction {
 
 // @func cmd
 // @brief executes a command in the foreground
-// @param args arguments to be passed to exec (null terminated)
+// @param tokens array of tokens for parsing
+// @param args1 array to fill with args
+// @param args2 array to fill with args
 // @return exit code of child process
-int cmd(char *tokens[], char *args[]);
+int cmd(char *tokens[], char *args1[], char *args2[]);
 
-// @func pipeDreams
-// @brief see HEAT by BROCKHAMPTON
-// (it actually pipes two commands together)
-// @param args1
-// @param args2
-// @return -1 for failure, 0 otherwise
-int pipeDreams(char *args1[], char *args2[]);
