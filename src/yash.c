@@ -10,7 +10,6 @@
 #include "yash.h"
 #include "parse.h"
 #include "command.h"
-
 // File: yash.c
 // Author: Jarrad Cisco
 // UT eid: jcc5225
@@ -20,6 +19,22 @@
 // yash also supports file redirection and piping, along with foreground and
 // background job management.
 
+pid_t pid_ch_bg[20] = {0};
+pid_t pid_ch_fg = 0;
+
+static void sig_handler(int signo) {
+	switch(signo) {
+	case SIGINT:
+		if (pid_ch_fg != 0)
+			kill(-pid_ch_fg, SIGINT);
+		break;
+	case SIGTSTP:
+		if (pid_ch_fg != 0)
+			kill(-pid_ch_fg, SIGTSTP);
+		break;
+	}
+}
+
 
 int main(int argc, char * argv[]) {
 	char *input;
@@ -27,10 +42,20 @@ int main(int argc, char * argv[]) {
 	char *args2[ARGS_SIZE] ={0};
 	char *tokens[TOKENS_SIZE] = {0};
 	int status;
+
+	if (signal(SIGINT, sig_handler) == SIG_ERR)
+		printf("signal(SIGINT) error");
+	if (signal(SIGTSTP, sig_handler) == SIG_ERR)
+		printf("signal(SIGTSTP) error");	
+
 	while(1) {
-		// print prompt and get user input
+		// print prompt and get ust indicates an EOF (end oer input
 		input = readline("# ");
 
+		if (input == 0){
+			printf("\n");
+			exit(0);
+		}
 		if (strcmp(input, "") == 0) {
 			//user didn't enter anything, don't do anything
 		}
@@ -43,6 +68,6 @@ int main(int argc, char * argv[]) {
         if (status == -1)
           	printf("\n");
 
-    }
+		}
 	}
 }

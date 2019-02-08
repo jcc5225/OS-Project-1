@@ -61,8 +61,6 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 	int pfd[2];
 	pid_t cpid[2];
 	int status[2];
-	int fd;
-
 
 	// get args for exec call
 	getArgs(tokens, args1);
@@ -83,7 +81,7 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		// close read end of pipe
 		close(pfd[PIPE_RD]);
 		// set stdout to pipe writer
-		fd = dup2(pfd[PIPE_WR], STDOUT_FILENO);
+		dup2(pfd[PIPE_WR], STDOUT_FILENO);
 		// execute command
 		execute(tokens, args1);
 	}
@@ -99,7 +97,7 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		// close writer end of pipe
 		close(pfd[PIPE_WR]);
 		// set stdin to pipe reader	// close read end of pipe
-		fd = dup2(pfd[PIPE_RD], STDIN_FILENO);
+		dup2(pfd[PIPE_RD], STDIN_FILENO);
 		// execute command
 		execute(tokens, args2);
 	}
