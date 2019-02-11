@@ -37,6 +37,15 @@ static bool tokcmp(char *token) {
 			strcmp(token, "|")  ==	0	);
 }
 
+int argLen(char **args) {
+	int count = 0;
+	while (*args != NULL) {
+		count++;
+		args++;
+	}
+	return count;
+}
+
 void getArgs(char *tokens[], char *args[]) {
     const size_t TOKEN_SZ = TOKEN_LEN*sizeof(char);
     char **arg = args;
@@ -104,4 +113,15 @@ int findErr(char *tokens[]) {
 			return i;
 	}
 	return -1;
+}
+
+void joinArgs(char *dest, char *args[]) {
+	char **arg = args;
+	while (*arg != NULL) {
+		strcat(dest, *arg);
+		strcat(dest, " ");
+		arg++;
+	}
+	// get rid of trailing space
+	dest[strlen(dest) - 2] = 0;
 }

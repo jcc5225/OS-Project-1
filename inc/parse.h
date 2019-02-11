@@ -7,6 +7,7 @@
 #define TOKEN_LEN	31
 #define TOKENS_SIZE	67
 #define ARGS_SIZE	67
+#define INPUT_SIZE	2001
 
 // @func getArgs
 // @brief extracts command arguments from an array of user-received tokens
@@ -46,3 +47,15 @@ int findPipe(char *tokens[]);
 // @return index of first "2>" token, -1 if not found
 int findErr(char *tokens[]);
 
+// @func argLen
+// @brief returns the length of an array of args
+// @param args a null terminated array of strings
+// @return the length of args
+int argLen(char **args);
+
+// @func joinArgs
+// @brief joins an array of args into a single string
+// @param dset destination string
+// @param args array of arguments
+// @return void
+void joinArgs(char *dest, char *args[]);

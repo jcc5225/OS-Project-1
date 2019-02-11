@@ -2,9 +2,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 #include "command.h"
 #include "parse.h"
-// File: command.h
+#include "yash.h"
+#include "jobs.h"
+// File: command.c
 // Author: Jarrad Cisco
 // UT eid: jcc5225
 // Description:
@@ -39,16 +42,28 @@ static void execute(char *tokens[], char *args[]) {
 	int outputLoc = findOutputRedirect(tokens);
 	int inputLoc = findInputRedirect(tokens);
 
-	if (outputLoc != -1) {
-		fd = open(tokens[outputLoc + 1], O_RDWR | O_APPEND | O_CREAT | O_CLOEXEC, 0777);
-		redirect(fd, OUT);
+	// TODO: error redirection
 
+	if (outputLoc != -1) {
+		// do output redirection
+		fd = open(tokens[outputLoc + 1], O_RDWR | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
+		redirect(fd, OUT);
 	}
 	if (inputLoc != -1) {
-		fd = open(tokens[inputLoc + 1], O_RDONLY | O_CLOEXEC, 0777);
+		// do input redirection
+		fd = open(tokens[inputLoc + 1], O_RDONLY | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
 		redirect(fd, IN);
 	}
-	execvp(args[0], args);
+
+	// look for print jobs command
+	if (strcmp(args[0], "jobs") == 0 && argLen(args) == 1) {
+		printJobs();
+		exit(0);
+	}
+	// execute command
+	else {
+		execvp(args[0], args);
+	}
 }
 
 // @func pipeDreams
@@ -86,7 +101,7 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		execute(tokens, args1);
 	}
 	// create another child ("Reader")
-		
+
 	cpid[1] = (pid_t) fork();
 
 	if (cpid[1] == -1) {
@@ -101,12 +116,14 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		// execute command
 		execute(tokens, args2);
 	}
-	
+
 	close(pfd[0]);
 	close(pfd[1]);
+	// update fg job
+	setMainJob(cpid[0], cpid[1], args1);
 	// wait for children to finish
-	waitpid(cpid[0], &status[0], 0);
-	waitpid(cpid[1], &status[1], 0);
+	waitpid(cpid[0], &status[0], WUNTRACED);
+	waitpid(cpid[1], &status[1], WUNTRACED);
 
 	return status[0] | status[1];
 }
@@ -129,7 +146,11 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 		cpid = fork();
 
 		if (cpid != 0) { // Parent process
-			wait(&status);
+			// set foreground job
+			setMainJob(cpid, -1, args1);
+			// TODO: look for & token
+			waitpid(cpid, &status, WUNTRACED);
+
 		}
 		else { // Child Process
 			execute(tokens, args1);

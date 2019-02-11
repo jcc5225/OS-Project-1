@@ -10,6 +10,7 @@
 #include "yash.h"
 #include "parse.h"
 #include "command.h"
+#include "jobs.h"
 // File: yash.c
 // Author: Jarrad Cisco
 // UT eid: jcc5225
@@ -19,19 +20,37 @@
 // yash also supports file redirection and piping, along with foreground and
 // background job management.
 
-pid_t pid_ch_bg[20] = {0};
-pid_t pid_ch_fg = 0;
+extern job_t fgJob;
+extern process_buffer_t bgJobs;
 
 static void sig_handler(int signo) {
 	switch(signo) {
 	case SIGINT:
-		if (pid_ch_fg != 0)
-			kill(-pid_ch_fg, SIGINT);
+		printf("\n");
+		if (fgJob.mainPid > 0) {
+			kill(fgJob.mainPid, SIGINT);
+			if (fgJob.subPid > 0)
+				kill(fgJob.subPid, SIGINT);
+			// push foreground job to background buffer
+			if (pushToBg() == -1)
+				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+		}
+		else printf("# ");
 		break;
 	case SIGTSTP:
-		if (pid_ch_fg != 0)
-			kill(-pid_ch_fg, SIGTSTP);
+		printf("\n");
+		if (fgJob.mainPid > 0) {
+			kill(fgJob.mainPid, SIGTSTP);
+			if (fgJob.subPid > 0)
+				kill(fgJob.subPid, SIGTSTP);
+			// push foreground job to background
+			if (pushToBg() == -1)
+				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+		}
+		else printf("# ");
 		break;
+    case SIGCHLD:
+        break;
 	}
 }
 
@@ -46,7 +65,13 @@ int main(int argc, char * argv[]) {
 	if (signal(SIGINT, sig_handler) == SIG_ERR)
 		printf("signal(SIGINT) error");
 	if (signal(SIGTSTP, sig_handler) == SIG_ERR)
-		printf("signal(SIGTSTP) error");	
+		printf("signal(SIGTSTP) error");
+	if (signal(SIGHUP, sig_handler) == SIG_ERR)
+        printf("signal(SIGHUP) error");
+
+    // initialize foreground job
+	fgJob.command = malloc(INPUT_SIZE*sizeof(char));
+	clearMainJob();
 
 	while(1) {
 		// print prompt and get ust indicates an EOF (end oer input
@@ -54,19 +79,20 @@ int main(int argc, char * argv[]) {
 
 		if (input == 0){
 			printf("\n");
+			free(fgJob.command);
 			exit(0);
 		}
 		if (strcmp(input, "") == 0) {
 			//user didn't enter anything, don't do anything
 		}
 		else {
-			  // tokenize input
-				getTokens(input, tokens);
+		    // tokenize input
+            getTokens(input, tokens);
 
-			  // execute children
-        status = cmd(tokens, args1, args2);
-        if (status == -1)
-          	printf("\n");
+            // execute command
+            status = cmd(tokens, args1, args2);
+            if (status == -1)
+          	    printf("\n");
 
 		}
 	}
