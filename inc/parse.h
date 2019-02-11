@@ -1,3 +1,4 @@
+#include <stdbool.h>
 // File: parse.h
 // Author: Jarrad Cisco
 // UT eid: jcc5225
@@ -59,3 +60,9 @@ int argLen(char **args);
 // @param args array of arguments
 // @return void
 void joinArgs(char *dest, char *args[]);
+
+// @func findBg
+// @brief finds the last token and compares it to "&"
+// @param tokens null-terminated array of tokens to search
+// @return true iff "&" is last token
+bool findBg(char **tokens);

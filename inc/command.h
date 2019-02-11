@@ -1,3 +1,4 @@
+#include <stdbool.h>
 // File: command.h
 // Author: Jarrad Cisco
 // UT eid: jcc5225
@@ -11,7 +12,8 @@
 // direction of file redirection
 typedef enum direction {
 	IN,
-	OUT
+	OUT,
+	ERR
 } direction;
 
 // @func cmd
@@ -20,5 +22,5 @@ typedef enum direction {
 // @param args1 array to fill with args
 // @param args2 array to fill with args
 // @return exit code of child process
-int cmd(char *tokens[], char *args1[], char *args2[]);
+int cmd(char *tokens[], char *args1[], char *args2[], bool bg);
 

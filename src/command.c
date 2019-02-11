@@ -19,31 +19,34 @@
 // @param dir the direction of the redirection
 // @return -1 on failure, new fd otherwise
 static int redirect(int fd, direction dir) {
-	int status;
+	int status = -1;
 	switch (dir) {
 	case IN:
-		// open the file for reading
+		if (fd == -1)
+			return fd;
 		status = dup2(fd, STDIN_FILENO);
-		return status;
+		break;
 	case OUT:
 		// open the file for writing
 		if (fd == -1)
 			return fd;
 		status = dup2(fd, STDOUT_FILENO);
-		return status;
-	default:
-		// unexpected enum value
-		return -1;
+		break;
+	case ERR:
+		if (fd == -1)
+			return fd;
+		status = dup2(fd, STDERR_FILENO);
+		break;
 	}
+	return status;
 }
 
 static void execute(char *tokens[], char *args[]) {
 	int fd;
 	int outputLoc = findOutputRedirect(tokens);
 	int inputLoc = findInputRedirect(tokens);
-
-	// TODO: error redirection
-
+	int errLoc = findErr(tokens);
+	
 	if (outputLoc != -1) {
 		// do output redirection
 		fd = open(tokens[outputLoc + 1], O_RDWR | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
@@ -53,6 +56,10 @@ static void execute(char *tokens[], char *args[]) {
 		// do input redirection
 		fd = open(tokens[inputLoc + 1], O_RDONLY | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
 		redirect(fd, IN);
+	}
+	if (errLoc != -1) {
+		fd = open(tokens[errLoc + 1], O_RDWR | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
+		redirect(fd, ERR);
 	}
 
 	// look for print jobs command
@@ -81,10 +88,10 @@ static void execute(char *tokens[], char *args[]) {
 // @param args1
 // @param args2
 // @return -1 for failure, 0 otherwise
-static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc) {
+static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc, bool bg) {
 	int pfd[2];
 	pid_t cpid[2];
-	int status[2];
+	int status;
 
 	// get args for exec call
 	getArgs(tokens, args1);
@@ -137,22 +144,25 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 	
 	// update fg job
 	setMainJob(-1*cpid[0], tokens);
-	// wait for children to finish
-	waitpid(cpid[1], &status[1], WUNTRACED);
-	waitpid(cpid[0], &status[0], WUNTRACED);
-
-	return status[0] | status[1];
+	if (!bg) {
+		// wait for children to finish
+		waitpid(cpid[1], &status, WUNTRACED);
+		waitpid(cpid[0], &status, WUNTRACED);
+	}
+	else {
+		waitpid(cpid[1], &status, WNOHANG);
+	}
+	return status;
 }
 
-int cmd(char *tokens[], char *args1[], char *args2[]) {
+int cmd(char *tokens[], char *args1[], char *args2[], bool bg) {
 	int status, cpid;
 	int pipeLoc;
 
-	// determine if piping or not
+	// pipe if '|' token found
 	pipeLoc = findPipe(tokens);
-
 	if (pipeLoc != -1) {
-		status = pipeDreams(tokens, args1, args2, pipeLoc);
+		status = pipeDreams(tokens, args1, args2, pipeLoc, bg);
 	}
 	// look for fg command
 	else if (strcmp(tokens[0], "fg") == 0) {
@@ -162,6 +172,11 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 		// wait for all children in process group
 		while(waitpid(pid, &status, WUNTRACED) > 0);
 		return status;
+	}
+	else if (strcmp(tokens[0], "bg") == 0) {
+		pid_t pid = resume();
+		kill (pid, SIGCONT);
+		return -1;
 	}
 	else {
 		// get args for exec call
@@ -177,9 +192,11 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 		setpgid(cpid, 0);
 		// set foreground process job
 		setMainJob(cpid, tokens);
-
-		waitpid(cpid, &status, WUNTRACED);
-
+		if (!bg)
+			waitpid(cpid, &status, WUNTRACED);
+		else {
+			waitpid(cpid, &status, WNOHANG);
+		}
 	}
 
 	return status;

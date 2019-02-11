@@ -56,12 +56,9 @@ int main(int argc, char * argv[]) {
 		printf("signal(SIGINT) error");
 	if (signal(SIGTSTP, sig_handler) == SIG_ERR)
 		printf("signal(SIGTSTP) error");
-	if (signal(SIGHUP, sig_handler) == SIG_ERR)
-        printf("signal(SIGHUP) error");
 
-    // initialize foreground job
-	fgJob.command = malloc(INPUT_SIZE*sizeof(char));
-	clearMainJob();
+	// initialize job DS
+	initJobs();
 
 	while(1) {
 		// print prompt and get ust indicates an EOF (end oer input
@@ -79,11 +76,14 @@ int main(int argc, char * argv[]) {
 		    // tokenize input
             getTokens(input, tokens);
 
+            bool bg = findBg(tokens);
+
             // execute command
-            status = cmd(tokens, args1, args2);
+            status = cmd(tokens, args1, args2, bg);
             if (status == -1)
           	    printf("\n");
-			updatePID(status);
+            else
+			    updatePID(status, bg);
 		}
 	}
 }

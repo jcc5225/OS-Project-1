@@ -14,15 +14,22 @@
 
 #define NUM_JOBS  20
 
+typedef struct stack_struct {
+    int buf[NUM_JOBS];
+    int top;
+} int_stack;
+
 typedef struct job_struct {
   pid_t pgid;
   int status;
+  int jobNo;
   char *command;
+  bool bg;
 } job_t;
 
 typedef struct process_buffer {
   job_t *jobs[NUM_JOBS];
-  int idx;
+  int_stack queue;
 } process_buffer_t;
 
 // @func printJobs
@@ -31,10 +38,18 @@ typedef struct process_buffer {
 // @return void
 void printJobs(void);
 
+// @func initJobs
+// @brief initializes job tracking
+// @param void
+// @return void
+void initJobs(void);
+
 void setMainJob(pid_t pid1, char *args[]);
 
 void clearMainJob(void);
 
 pid_t wakeUp(void);
 
-void updatePID(int status);
+pid_t resume(void);
+
+void updatePID(int status, bool bg);

@@ -31,10 +31,11 @@ static void freeArr(char **arr, int len) {
 // @return true if one of yash tokens, false otherwise
 static bool tokcmp(char *token) {
 	return (token == NULL				||
-			strcmp(token, ">") == 0	||
-			strcmp(token, "<") == 0	||
+			strcmp(token, ">") == 0		||
+			strcmp(token, "<") == 0		||
 			strcmp(token, "2>") == 0	||
-			strcmp(token, "|")  ==	0	);
+			strcmp(token, "|")  ==	0	||
+			strcmp(token, "&") == 0		);
 }
 
 int argLen(char **args) {
@@ -128,4 +129,17 @@ void joinArgs(char *dest, char *args[]) {
 	}
 	// get rid of trailing space
 	dest[strlen(dest) - 1] = 0;
+}
+
+bool findBg(char **tokens) {
+    char **cur = tokens;
+    char **next = tokens + 1;
+    while (*cur != 0 && *next != 0) {
+        next++;
+        cur++;
+    }
+    if (cur != NULL) {
+        return !strcmp(*cur, "&");
+    }
+    return false;
 }

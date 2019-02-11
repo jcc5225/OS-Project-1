@@ -9,33 +9,51 @@
 job_t fgJob;
 process_buffer_t bgJobs;
 
-static void clearJob(job_t *j) {
-  j -> pgid = -1;
-  j -> command[0] = '\0';
+static int pop() {
+	if (bgJobs.queue.top == 0)
+		return -1;
+
+	bgJobs.queue.top--;
+	return bgJobs.queue.buf[bgJobs.queue.top];
 }
 
-static bool isFull() {
-  return bgJobs.idx == NUM_JOBS;
+static int push(int val) {
+	if (bgJobs.queue.top == NUM_JOBS)
+		return -1;
+
+	bgJobs.queue.buf[bgJobs.queue.top] = val;
+	bgJobs.queue.top++;
+	return 0;
 }
-static bool isEmpty() {
-  return bgJobs.idx == 0;
+
+static int peek() {
+	if (bgJobs.queue.top == 0)
+		return -1;
+	return bgJobs.queue.buf[bgJobs.queue.top - 1];
 }
 
 static int putJob(job_t *j) {
-  if (isFull())
-    return -1;
-  bgJobs.jobs[bgJobs.idx] = j;
-  bgJobs.idx++;
-  return 0;
+	int i = 0;
+	while(i < NUM_JOBS && bgJobs.jobs[i] != NULL) {
+		i++;
+	}
+	if (i == NUM_JOBS)
+		return -1;
+	bgJobs.jobs[i] = j;
+	// if job is stopped, add it to the queue
+	if (!(j->bg))
+		push(i);
+	return i;
 }
 
-static job_t *getJob() {
-  if (isEmpty())
-    return NULL;
-  job_t *j = bgJobs.jobs[bgJobs.idx - 1];
-  bgJobs.jobs[bgJobs.idx - 1] = NULL;
-  bgJobs.idx--;
-  return j;
+static job_t *getJob(bool remove) {
+	int pos = pop();
+	if (pos == -1)
+		return NULL;
+	job_t *j = bgJobs.jobs[pos];
+	if (remove)
+		bgJobs.jobs[pos] = NULL;
+  	return j;
 }
 
 static void killJob(job_t *job) {
@@ -45,13 +63,22 @@ static void killJob(job_t *job) {
 
 static void statusAsStr(job_t *job, char *strBuf) {
 	int status = job->status;
-	if (WIFSTOPPED(status)) {
-		sprintf(strBuf, "Stopped");
-		return;
+	if (job->bg) {
+		if (waitpid(job->pgid, &status, WNOHANG) == 0) {
+			sprintf(strBuf, "Running");
+			return;
+		}
+		else job->status = status;
 	}
-	else if (WIFCONTINUED(status)) {
-		// TODO: check for completion here
-		sprintf(strBuf, "Running");
+	if (WIFCONTINUED(status)) {
+		if (waitpid(job->pgid, &status, WNOHANG) == 0) {
+			sprintf(strBuf, "Running");
+			return;
+		}
+		else job->status = status;
+	}
+	else if (WIFSTOPPED(status)) {
+		sprintf(strBuf, "Stopped");
 		return;
 	}
 	else if (WIFSIGNALED(status)) {
@@ -84,23 +111,31 @@ void setMainJob(pid_t pid, char *args[]) {
 void clearMainJob() {
 	fgJob.pgid = 0;
 	fgJob.status = 0;
+	fgJob.bg = false;
 	for (int i = 0; i < strlen(fgJob.command); i++)
 		fgJob.command[i] = '\0';
 }
 
-static int pushToBg() {
+int pushToBg() {
 	job_t *j = createJob(fgJob.pgid, fgJob.status, fgJob.command);
-	if (putJob(j) == -1) {
+	int pos = putJob(j);
+	if (pos == -1) {
 		killJob(&fgJob);
 		return -1;
 	}
+	j->jobNo = pos;
 	clearMainJob();
 	return 0;
 }
 
-void updatePID(int status) {
+void updatePID(int status, bool bg) {
 	fgJob.status = status;
-	if (WIFEXITED(status)) {
+	fgJob.bg = bg;
+	if (bg) {
+		if (pushToBg() == -1)
+			printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+	}
+	else if (WIFEXITED(status)) {
 		clearMainJob();
 	}
 	else if (WIFSIGNALED(status)) {
@@ -117,17 +152,26 @@ void updatePID(int status) {
 	}
 }
 
+void jobToStr(job_t *job, char *dest) {
+	char stat[30];
+	statusAsStr(job, stat);
+	sprintf(dest, "[%d] %c %s\t%s",
+			job->jobNo, (job->jobNo == peek()) ? '+' : '-', stat, job->command);
+}
+
 void printJobs() {
-	char status[30] = {0};
-	for (int i = 0; i < bgJobs.idx; i++) {
-        statusAsStr(bgJobs.jobs[i], status);
-        printf("[%d] %c %s\t%s\n", i, (i == (bgJobs.idx - 1)) ? '+' : '-', status, bgJobs.jobs[i]->command);
+	char jobStr[INPUT_SIZE] = {0};
+	for (int i = 0; i < NUM_JOBS; i++) {
+		if (bgJobs.jobs[i] != NULL) {
+			jobToStr(bgJobs.jobs[i], jobStr);
+			printf("%s\n", jobStr);
+		}
     }
 }
 
 pid_t wakeUp() {
 	// copy old job to foreground job
-	job_t *newJob = getJob();
+	job_t *newJob = getJob(true);
 	fgJob.pgid = newJob->pgid;
 	sprintf(fgJob.command, "%s", newJob->command);
 	free(newJob->command);
@@ -136,8 +180,19 @@ pid_t wakeUp() {
 	return fgJob.pgid;
 }
 
-void resume(int job_no) {
+pid_t resume() {
+	// get job object
+	job_t *newJob = getJob(false);
+	newJob->bg = true;
+	return newJob->pgid;
+}
 
+void initJobs() {
+	// Initialize foreground job
+	fgJob.command = malloc(INPUT_SIZE*sizeof(char));
+	clearMainJob();
+	// Initialize background jobs
+	bgJobs.queue.top = 0;
 }
 
 
