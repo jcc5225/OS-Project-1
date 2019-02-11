@@ -41,6 +41,7 @@ static void execute(char *tokens[], char *args[]) {
 	int fd;
 	int outputLoc = findOutputRedirect(tokens);
 	int inputLoc = findInputRedirect(tokens);
+	pid_t cpid[2];
 
 	// TODO: error redirection
 
@@ -60,6 +61,17 @@ static void execute(char *tokens[], char *args[]) {
 		printJobs();
 		exit(0);
 	}
+	// look for fg command
+	/*else if (strcmp(args[0], "fg") == 0 && argLen(args) == 1) {
+		wakeUp(cpid);
+		kill(cpid[0], SIGCONT);
+		if (cpid[1] > 0) {
+			kill(cpid[1], SIGCONT);
+			waitpid(cpid[1], NULL, WUNTRACED);
+		}
+		waitpid(cpid[0], NULL, WUNTRACED);
+		exit(0);
+	}*/
 	// execute command
 	else {
 		execvp(args[0], args);
@@ -157,5 +169,6 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 		}
 
 	}
+
 	return status;
 }

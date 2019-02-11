@@ -117,11 +117,15 @@ int findErr(char *tokens[]) {
 
 void joinArgs(char *dest, char *args[]) {
 	char **arg = args;
+	// clear destination string
+	for (int i = 0; i < strlen(dest); i++)
+		dest[i] = '\0';
+	// append args
 	while (*arg != NULL) {
 		strcat(dest, *arg);
 		strcat(dest, " ");
 		arg++;
 	}
 	// get rid of trailing space
-	dest[strlen(dest) - 2] = 0;
+	dest[strlen(dest) - 1] = 0;
 }

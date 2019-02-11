@@ -16,26 +16,26 @@ static void clearJob(job_t *j) {
 }
 
 static bool isFull() {
-  return (bgJobs.inBuf + 1) % NUM_JOBS == bgJobs.outBuf;
+  return bgJobs.idx == NUM_JOBS;
 }
 static bool isEmpty() {
-  return bgJobs.inBuf == bgJobs.outBuf;
+  return bgJobs.idx == 0;
 }
 
 static int putJob(job_t *j) {
   if (isFull())
     return -1;
-  bgJobs.jobs[bgJobs.inBuf] = j;
-  bgJobs.inBuf = (bgJobs.inBuf + 1) % NUM_JOBS;
+  bgJobs.jobs[bgJobs.idx] = j;
+  bgJobs.idx++;
   return 0;
 }
 
 static job_t *getJob() {
   if (isEmpty())
     return NULL;
-  job_t *j = bgJobs.jobs[bgJobs.outBuf];
-  bgJobs.jobs[bgJobs.outBuf] = NULL;
-  bgJobs.outBuf = (bgJobs.outBuf + 1) % NUM_JOBS;
+  job_t *j = bgJobs.jobs[bgJobs.idx - 1];
+  bgJobs.jobs[bgJobs.idx - 1] = NULL;
+  bgJobs.idx--;
   return j;
 }
 
@@ -46,18 +46,18 @@ static void killJob(job_t *job) {
 }
 
 static void statusAsStr(job_t *job, char *strBuf) {
-    int status;
-   	waitpid(job->mainPid, &status, WNOHANG);
+	int status = job->status;
 	if (WIFSTOPPED(status)) {
 		sprintf(strBuf, "Stopped");
 		return;
 	}
 	else if (WIFCONTINUED(status)) {
+		// TODO: check for completion here
 		sprintf(strBuf, "Running");
 		return;
 	}
 	else if (WIFSIGNALED(status)) {
-		sprintf(strBuf, "Killed");
+		sprintf(strBuf, "Stopped");
 		return;
 	}
 	else if (WIFEXITED(status)) {
@@ -69,12 +69,13 @@ static void statusAsStr(job_t *job, char *strBuf) {
 	}
 }
 
-job_t *createJob(pid_t pid1, pid_t pid2, char *cmd) {
+job_t *createJob(pid_t pid1, pid_t pid2, int status, char *cmd) {
   job_t *j = (job_t *) malloc(sizeof(job_t));
   j -> mainPid = pid1;
   j -> subPid = pid2;
   j -> command = calloc(strlen(cmd) + 1, sizeof(char));
-  strcpy(j->command, cmd);
+  sprintf(j->command, "%s", cmd);
+	j -> status = status;
   return j;
 }
 
@@ -87,31 +88,14 @@ void setMainJob(pid_t pid1, pid_t pid2, char *args[]) {
 void clearMainJob() {
 	fgJob.mainPid = -1;
 	fgJob.subPid = -1;
-	fgJob.command[0] = '\0';
+	fgJob.status = 0;
+	for (int i = 0; i < strlen(fgJob.command); i++)
+		fgJob.command[i] = '\0';
 }
 
-void updatePID(int status) {
-	if (WIFEXITED(status)) {
-		clearJob(&fgJob);
-	}
-	else if (WIFSIGNALED(status)) {
-		printf("child %d killed by signal %d\n", fgJob.mainPid, WTERMSIG(status));
-	}
-	else if (WIFSTOPPED(status)) {
-    job_t *j = createJob(fgJob.mainPid, fgJob.subPid, fgJob.command);
-    if (putJob(j) == -1) {
-      printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
-      killJob(&fgJob);
-    }
-	}
-	else if (WIFCONTINUED(status)) {
-		printf("Continuing %d\n", fgJob.mainPid);
-	}
-}
-
-int pushToBg() {
-	job_t *j = createJob(fgJob.mainPid, fgJob.subPid, fgJob.command);
-    if (putJob(j) == -1) {
+static int pushToBg() {
+	job_t *j = createJob(fgJob.mainPid, fgJob.subPid, fgJob.status, fgJob.command);
+	if (putJob(j) == -1) {
 		killJob(&fgJob);
 		return -1;
 	}
@@ -119,14 +103,50 @@ int pushToBg() {
 	return 0;
 }
 
+void updatePID(int status) {
+	fgJob.status = status;
+	if (WIFEXITED(status)) {
+		clearMainJob();
+	}
+	else if (WIFSIGNALED(status)) {
+		if (pushToBg() == -1)
+				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+	}
+	else if (WIFSTOPPED(status)) {
+    if (pushToBg() == -1)
+				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+	}
+	else if (WIFCONTINUED(status)) {
+		if (pushToBg() == -1)
+				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
+	}
+}
+
 void printJobs() {
-    char jobChar;
-    char status[30] = {0};
+	char status[30] = {0};
     // TODO: fix this
-	for (int i = (bgJobs.outBuf) % NUM_JOBS; i < bgJobs.inBuf; i++) {
+	for (int i = 0; i < bgJobs.idx; i++) {
         statusAsStr(bgJobs.jobs[i], status);
-        printf("[%d] %c %s\t%s\n", i, '-', status, bgJobs.jobs[i]->command);
+        printf("[%d] %c %s\t%s\n", i, (i == (bgJobs.idx - 1)) ? '+' : '-', status, bgJobs.jobs[i]->command);
     }
+}
+
+void wakeUp(pid_t *cpid) {
+	// copy old job to foreground job
+	job_t *newJob = getJob();
+	fgJob.mainPid = newJob->mainPid;
+	fgJob.subPid = newJob->subPid;
+	sprintf(fgJob.command, "%s", newJob->command);
+	free(newJob->command);
+	free(newJob);
+
+	// copy pids to array
+	cpid[0] = fgJob.mainPid;
+	cpid[1] = fgJob.subPid;
+}
+
+void resume(int job_no) {
+
 }
 
 

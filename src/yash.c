@@ -31,9 +31,6 @@ static void sig_handler(int signo) {
 			kill(fgJob.mainPid, SIGINT);
 			if (fgJob.subPid > 0)
 				kill(fgJob.subPid, SIGINT);
-			// push foreground job to background buffer
-			if (pushToBg() == -1)
-				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
 		}
 		else printf("# ");
 		break;
@@ -43,9 +40,6 @@ static void sig_handler(int signo) {
 			kill(fgJob.mainPid, SIGTSTP);
 			if (fgJob.subPid > 0)
 				kill(fgJob.subPid, SIGTSTP);
-			// push foreground job to background
-			if (pushToBg() == -1)
-				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
 		}
 		else printf("# ");
 		break;
@@ -93,7 +87,7 @@ int main(int argc, char * argv[]) {
             status = cmd(tokens, args1, args2);
             if (status == -1)
           	    printf("\n");
-
+			updatePID(status);
 		}
 	}
 }
