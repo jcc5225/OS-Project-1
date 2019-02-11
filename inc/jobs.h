@@ -15,8 +15,7 @@
 #define NUM_JOBS  20
 
 typedef struct job_struct {
-  pid_t mainPid;
-  pid_t subPid;
+  pid_t pgid;
   int status;
   char *command;
 } job_t;
@@ -32,10 +31,10 @@ typedef struct process_buffer {
 // @return void
 void printJobs(void);
 
-void setMainJob(pid_t pid1, pid_t pid2, char *args[]);
+void setMainJob(pid_t pid1, char *args[]);
 
 void clearMainJob(void);
 
-void wakeUp(pid_t *cpid);
+pid_t wakeUp(void);
 
 void updatePID(int status);

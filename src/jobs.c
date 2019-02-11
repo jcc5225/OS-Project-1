@@ -10,8 +10,7 @@ job_t fgJob;
 process_buffer_t bgJobs;
 
 static void clearJob(job_t *j) {
-  j -> mainPid = -1;
-  j -> subPid = -1;
+  j -> pgid = -1;
   j -> command[0] = '\0';
 }
 
@@ -40,9 +39,8 @@ static job_t *getJob() {
 }
 
 static void killJob(job_t *job) {
-  kill(job -> mainPid, SIGKILL);
-  if (job -> subPid > 0)
-    kill(job -> subPid, SIGKILL);
+  kill(job -> pgid, SIGKILL);
+
 }
 
 static void statusAsStr(job_t *job, char *strBuf) {
@@ -69,32 +67,29 @@ static void statusAsStr(job_t *job, char *strBuf) {
 	}
 }
 
-job_t *createJob(pid_t pid1, pid_t pid2, int status, char *cmd) {
+job_t *createJob(pid_t pid1, int status, char *cmd) {
   job_t *j = (job_t *) malloc(sizeof(job_t));
-  j -> mainPid = pid1;
-  j -> subPid = pid2;
+  j -> pgid = pid1;
   j -> command = calloc(strlen(cmd) + 1, sizeof(char));
   sprintf(j->command, "%s", cmd);
 	j -> status = status;
   return j;
 }
 
-void setMainJob(pid_t pid1, pid_t pid2, char *args[]) {
-	fgJob.mainPid = pid1;
-	fgJob.subPid = pid2;
+void setMainJob(pid_t pid, char *args[]) {
+	fgJob.pgid = pid;
 	joinArgs(fgJob.command, args);
 }
 
 void clearMainJob() {
-	fgJob.mainPid = -1;
-	fgJob.subPid = -1;
+	fgJob.pgid = 0;
 	fgJob.status = 0;
 	for (int i = 0; i < strlen(fgJob.command); i++)
 		fgJob.command[i] = '\0';
 }
 
 static int pushToBg() {
-	job_t *j = createJob(fgJob.mainPid, fgJob.subPid, fgJob.status, fgJob.command);
+	job_t *j = createJob(fgJob.pgid, fgJob.status, fgJob.command);
 	if (putJob(j) == -1) {
 		killJob(&fgJob);
 		return -1;
@@ -124,25 +119,21 @@ void updatePID(int status) {
 
 void printJobs() {
 	char status[30] = {0};
-    // TODO: fix this
 	for (int i = 0; i < bgJobs.idx; i++) {
         statusAsStr(bgJobs.jobs[i], status);
         printf("[%d] %c %s\t%s\n", i, (i == (bgJobs.idx - 1)) ? '+' : '-', status, bgJobs.jobs[i]->command);
     }
 }
 
-void wakeUp(pid_t *cpid) {
+pid_t wakeUp() {
 	// copy old job to foreground job
 	job_t *newJob = getJob();
-	fgJob.mainPid = newJob->mainPid;
-	fgJob.subPid = newJob->subPid;
+	fgJob.pgid = newJob->pgid;
 	sprintf(fgJob.command, "%s", newJob->command);
 	free(newJob->command);
 	free(newJob);
 
-	// copy pids to array
-	cpid[0] = fgJob.mainPid;
-	cpid[1] = fgJob.subPid;
+	return fgJob.pgid;
 }
 
 void resume(int job_no) {

@@ -27,19 +27,15 @@ static void sig_handler(int signo) {
 	switch(signo) {
 	case SIGINT:
 		printf("\n");
-		if (fgJob.mainPid > 0) {
-			kill(fgJob.mainPid, SIGINT);
-			if (fgJob.subPid > 0)
-				kill(fgJob.subPid, SIGINT);
+		if (fgJob.pgid != 0) {
+			kill(fgJob.pgid, SIGINT);
 		}
 		else printf("# ");
 		break;
 	case SIGTSTP:
 		printf("\n");
-		if (fgJob.mainPid > 0) {
-			kill(fgJob.mainPid, SIGTSTP);
-			if (fgJob.subPid > 0)
-				kill(fgJob.subPid, SIGTSTP);
+		if (fgJob.pgid != 0) {
+			kill(fgJob.pgid, SIGTSTP);
 		}
 		else printf("# ");
 		break;

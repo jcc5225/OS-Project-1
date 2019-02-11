@@ -41,7 +41,6 @@ static void execute(char *tokens[], char *args[]) {
 	int fd;
 	int outputLoc = findOutputRedirect(tokens);
 	int inputLoc = findInputRedirect(tokens);
-	pid_t cpid[2];
 
 	// TODO: error redirection
 
@@ -62,16 +61,14 @@ static void execute(char *tokens[], char *args[]) {
 		exit(0);
 	}
 	// look for fg command
-	/*else if (strcmp(args[0], "fg") == 0 && argLen(args) == 1) {
-		wakeUp(cpid);
-		kill(cpid[0], SIGCONT);
-		if (cpid[1] > 0) {
-			kill(cpid[1], SIGCONT);
-			waitpid(cpid[1], NULL, WUNTRACED);
-		}
-		waitpid(cpid[0], NULL, WUNTRACED);
-		exit(0);
-	}*/
+	else if (strcmp(args[0], "fg") == 0 && argLen(args) == 1) {
+		int status;
+		pid_t pid = wakeUp();
+		kill(pid, SIGCONT);
+		// wait for all children in process group
+		while(waitpid(pid, &status, WUNTRACED) > 0);
+		exit(status);
+	}
 	// execute command
 	else {
 		execvp(args[0], args);
@@ -112,8 +109,11 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		// execute command
 		execute(tokens, args1);
 	}
-	// create another child ("Reader")
 
+	// create new process group
+	setpgid(cpid[0], 0);
+
+	// create another child ("Reader")
 	cpid[1] = (pid_t) fork();
 
 	if (cpid[1] == -1) {
@@ -128,14 +128,18 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc)
 		// execute command
 		execute(tokens, args2);
 	}
+	// add second child to process group
+	setpgid(cpid[1], cpid[0]);
 
+	// Close Pipe
 	close(pfd[0]);
 	close(pfd[1]);
+	
 	// update fg job
-	setMainJob(cpid[0], cpid[1], args1);
+	setMainJob(-1*cpid[0], tokens);
 	// wait for children to finish
-	waitpid(cpid[0], &status[0], WUNTRACED);
 	waitpid(cpid[1], &status[1], WUNTRACED);
+	waitpid(cpid[0], &status[0], WUNTRACED);
 
 	return status[0] | status[1];
 }
@@ -144,11 +148,20 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 	int status, cpid;
 	int pipeLoc;
 
-	// determine if we're piping or not
+	// determine if piping or not
 	pipeLoc = findPipe(tokens);
 
 	if (pipeLoc != -1) {
 		status = pipeDreams(tokens, args1, args2, pipeLoc);
+	}
+	// look for fg command
+	else if (strcmp(tokens[0], "fg") == 0) {
+		int status;
+		pid_t pid = wakeUp();
+		kill(pid, SIGCONT);
+		// wait for all children in process group
+		while(waitpid(pid, &status, WUNTRACED) > 0);
+		return status;
 	}
 	else {
 		// get args for exec call
@@ -157,16 +170,15 @@ int cmd(char *tokens[], char *args1[], char *args2[]) {
 		// create child process
 		cpid = fork();
 
-		if (cpid != 0) { // Parent process
-			// set foreground job
-			setMainJob(cpid, -1, args1);
-			// TODO: look for & token
-			waitpid(cpid, &status, WUNTRACED);
-
-		}
-		else { // Child Process
+		if (cpid == 0) { // Child Process
 			execute(tokens, args1);
 		}
+		// create process group for child
+		setpgid(cpid, 0);
+		// set foreground process job
+		setMainJob(cpid, tokens);
+
+		waitpid(cpid, &status, WUNTRACED);
 
 	}
 
