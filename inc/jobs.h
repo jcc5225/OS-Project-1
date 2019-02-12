@@ -53,3 +53,7 @@ pid_t wakeUp(void);
 pid_t resume(void);
 
 void updatePID(int status, bool bg);
+
+void updateJobs(job_t **);
+
+void jobToStr(job_t *, char *);

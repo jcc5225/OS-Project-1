@@ -64,18 +64,12 @@ static void killJob(job_t *job) {
 static void statusAsStr(job_t *job, char *strBuf) {
 	int status = job->status;
 	if (job->bg) {
-		if (waitpid(job->pgid, &status, WNOHANG) == 0) {
-			sprintf(strBuf, "Running");
-			return;
-		}
-		else job->status = status;
+		sprintf(strBuf, "Running");
+		return;
 	}
 	if (WIFCONTINUED(status)) {
-		if (waitpid(job->pgid, &status, WNOHANG) == 0) {
-			sprintf(strBuf, "Running");
-			return;
-		}
-		else job->status = status;
+		sprintf(strBuf, "Running");
+		return;
 	}
 	else if (WIFSTOPPED(status)) {
 		sprintf(strBuf, "Stopped");
@@ -124,6 +118,7 @@ int pushToBg() {
 		return -1;
 	}
 	j->jobNo = pos;
+	j->bg = false;
 	clearMainJob();
 	return 0;
 }
@@ -190,9 +185,37 @@ pid_t resume() {
 void initJobs() {
 	// Initialize foreground job
 	fgJob.command = malloc(INPUT_SIZE*sizeof(char));
+	fgJob.bg = false;
 	clearMainJob();
 	// Initialize background jobs
 	bgJobs.queue.top = 0;
+}
+
+void updateJobs(job_t *doneJobs[]) {
+	int status;
+	int doneIdx = 0;
+	// empty the destination list
+	for (int i = 0; i < NUM_JOBS; i++) {
+		if (doneJobs[i] != NULL) {
+			job_t *job = doneJobs[i];
+			doneJobs[i] = NULL;
+			free(job->command);
+			free(job);
+		}
+	}
+	// put done jobs into list
+	for (int i = 0; i < NUM_JOBS; i++) {
+		job_t *job = bgJobs.jobs[i];
+		if (job != NULL) {
+			if (waitpid(job->pgid, &status, WNOHANG) > 0) {
+				doneJobs[doneIdx] = job;
+				bgJobs.jobs[i] = NULL;
+				doneIdx++;
+				job-> status = status;
+				job->bg = false;
+			}
+		}
+	}
 }
 
 

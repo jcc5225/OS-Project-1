@@ -46,7 +46,7 @@ static void execute(char *tokens[], char *args[]) {
 	int outputLoc = findOutputRedirect(tokens);
 	int inputLoc = findInputRedirect(tokens);
 	int errLoc = findErr(tokens);
-	
+
 	if (outputLoc != -1) {
 		// do output redirection
 		fd = open(tokens[outputLoc + 1], O_RDWR | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);

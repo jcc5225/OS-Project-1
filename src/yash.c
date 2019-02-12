@@ -48,8 +48,10 @@ static void sig_handler(int signo) {
 int main(int argc, char * argv[]) {
 	char *input;
 	char *args1[ARGS_SIZE] = {0};
-	char *args2[ARGS_SIZE] ={0};
+	char *args2[ARGS_SIZE] = {0};
 	char *tokens[TOKENS_SIZE] = {0};
+	job_t *doneJobs[NUM_JOBS] = {0};
+	char buf[INPUT_SIZE];
 	int status;
 
 	if (signal(SIGINT, sig_handler) == SIG_ERR)
@@ -69,6 +71,12 @@ int main(int argc, char * argv[]) {
 			free(fgJob.command);
 			exit(0);
 		}
+		// check for background jobs that have completed
+		updateJobs(doneJobs);
+		for (int i = 0; i < NUM_JOBS && doneJobs[i] != NULL; i++) {
+			jobToStr(doneJobs[i], buf);
+			printf("%s\n", buf);
+		}
 		if (strcmp(input, "") == 0) {
 			//user didn't enter anything, don't do anything
 		}
@@ -80,7 +88,7 @@ int main(int argc, char * argv[]) {
 
             // execute command
             status = cmd(tokens, args1, args2, bg);
-            if (status == -1)
+            if (status == -1 && strcmp(tokens[0], "bg"))
           	    printf("\n");
             else
 			    updatePID(status, bg);
