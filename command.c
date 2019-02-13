@@ -55,6 +55,8 @@ static void execute(char *tokens[], char *args[]) {
 	if (inputLoc != -1) {
 		// do input redirection
 		fd = open(tokens[inputLoc + 1], O_RDONLY | O_CLOEXEC, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH);
+		if (fd == -1)
+			exit(-1);
 		redirect(fd, IN);
 	}
 	if (errLoc != -1) {
@@ -67,18 +69,9 @@ static void execute(char *tokens[], char *args[]) {
 		printJobs();
 		exit(0);
 	}
-	// look for fg command
-	else if (strcmp(args[0], "fg") == 0 && argLen(args) == 1) {
-		int status;
-		pid_t pid = wakeUp();
-		kill(pid, SIGCONT);
-		// wait for all children in process group
-		while(waitpid(pid, &status, WUNTRACED) > 0);
-		exit(status);
-	}
 	// execute command
 	else {
-		execvp(args[0], args);
+		exit(execvp(args[0], args));
 	}
 }
 
@@ -151,6 +144,7 @@ static int pipeDreams(char *tokens[], char *args1[], char *args2[], int pipeLoc,
 	}
 	else {
 		waitpid(cpid[1], &status, WNOHANG);
+		waitpid(cpid[0], &status, WNOHANG);
 	}
 	return status;
 }

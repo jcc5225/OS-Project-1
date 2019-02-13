@@ -110,15 +110,15 @@ void clearMainJob() {
 		fgJob.command[i] = '\0';
 }
 
-int pushToBg() {
+int pushToBg(bool bg) {
 	job_t *j = createJob(fgJob.pgid, fgJob.status, fgJob.command);
+	j -> bg = bg;
 	int pos = putJob(j);
 	if (pos == -1) {
 		killJob(&fgJob);
 		return -1;
 	}
 	j->jobNo = pos;
-	j->bg = false;
 	clearMainJob();
 	return 0;
 }
@@ -127,22 +127,14 @@ void updatePID(int status, bool bg) {
 	fgJob.status = status;
 	fgJob.bg = bg;
 	if (bg) {
-		if (pushToBg() == -1)
+		if (pushToBg(bg) == -1)
 			printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
 	}
 	else if (WIFEXITED(status)) {
 		clearMainJob();
 	}
-	else if (WIFSIGNALED(status)) {
-		if (pushToBg() == -1)
-				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
-	}
-	else if (WIFSTOPPED(status)) {
-    if (pushToBg() == -1)
-				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
-	}
-	else if (WIFCONTINUED(status)) {
-		if (pushToBg() == -1)
+	else if (WIFSIGNALED(status) || WIFSTOPPED(status) || WIFCONTINUED(status)) {
+		if (pushToBg(bg) == -1)
 				printf("too many jobs running (%d), killing foreground job\n", NUM_JOBS);
 	}
 }
@@ -150,7 +142,7 @@ void updatePID(int status, bool bg) {
 void jobToStr(job_t *job, char *dest) {
 	char stat[30];
 	statusAsStr(job, stat);
-	sprintf(dest, "[%d] %c %s\t%s",
+	sprintf(dest, "[%d]%c %s\t%s",
 			job->jobNo, (job->jobNo == peek()) ? '+' : '-', stat, job->command);
 }
 
